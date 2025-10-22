@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>ReSkills | AI-Анализ Карьеры</title>
+    <style>
+        /* ОСНОВНОЙ СТИЛЬ */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 {
+            color: #1565c0; /* СИНИЙ - Технологии и интеллект */
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 2em; /* Адаптивный размер */
+        }
+        h2 {
+            color: #1565c0;
+            margin-top: 30px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+        /* СТИЛЬ ФОРМЫ */
+        form {
+            display: grid;
+            gap: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        /* ВАЖНОЕ ИЗМЕНЕНИЕ ДЛЯ МОБИЛЬНЫХ: input на 100% ширины контейнера */
+        input[type="text"], textarea, input[type="email"] {
+            width: 100%; 
+            box-sizing: border-box; /* Учитываем padding и border в ширине */
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus {
+            border-color: #43a047; /* ГЛУБОКИЙ ЗЕЛЕНЫЙ акцент */
+            outline: none;
+            box-shadow: 0 0 5px rgba(67, 160, 71, 0.3);
+        }
+        .button-container {
+            text-align: center;
+        }
+        button {
+            background-color: #43a047; /* ГЛУБОКИЙ ЗЕЛЕНЫЙ - Цвет действия/роста */
+            color: white;
+            /* УВЕЛИЧЕННЫЙ PADDING ДЛЯ УДОБСТВА НАЖАТИЯ НА МОБИЛЬНЫХ */
+            padding: 15px 30px; 
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 700;
+            width: 100%; /* Кнопка на всю ширину мобильного экрана */
+            max-width: 350px; /* Максимальная ширина для десктопа */
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #388e3c;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* СТИЛЬ ЗАГРУЗКИ */
+        .loading {
+            display: none; 
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #43a047;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #loadingText {
+            font-size: 1.1em;
+            color: #1565c0; 
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        /* СТИЛЬ РЕЗУЛЬТАТА (Имитация Чата) */
+        .result {
+            display: none; 
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+        .ai-message {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            line-height: 1.6;
+        }
+        .ai-message a {
+            color: #1565c0;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .ai-message strong {
+            color: #1565c0;
+        }
+        /* АДАПТИВНОСТЬ: Медиа-запрос для экранов <= 600px */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px; /* Уменьшаем внешние отступы */
+            }
+            .container {
+                padding: 20px; /* Уменьшаем внутренние отступы */
+                border-radius: 0; /* Убираем скругление по краям экрана */
+            }
+            h1 {
+                font-size: 1.5em; /* Делаем заголовок меньше */
+            }
+            button {
+                padding: 15px 10px; /* Увеличиваем вертикальный, но уменьшаем горизонтальный паддинг */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>ReSkills</h1>
+        <p style="text-align: center; color: #555;">AI-Анализ: Получите свой персонализированный план Reskilling за 30 секунд.</p>
+
+        <form id="reskillForm">
+            <div>
+                <label for="currentJob">Текущая должность и ключевые обязанности:</label>
+                <input type="text" id="currentJob" name="currentJob" required placeholder="Например: Менеджер проектов в строительстве">
+            </div>
+            <div>
+                <label for="skills">Ваши 5 основных навыков (перечислите через запятую):</label>
+                <textarea id="skills" name="skills" required rows="2" placeholder="Например: Excel, Управление командой, Базовый Python, Анализ данных, Коммуникация"></textarea>
+            </div>
+            <div>
+                <label for="targetJob">Желаемая целевая профессия/сфера:</label>
+                <input type="text" id="targetJob" name="targetJob" required placeholder="Например: Аналитик данных / UX-дизайнер">
+            </div>
+            <div>
+                <label for="email">Email для получения полного отчета:</label>
+                <input type="email" id="email" name="email" required placeholder="example@mail.com">
+            </div>
+            
+            <div class="button-container">
+                <button type="submit" id="submitBtn">Запустить AI-Анализ &rarr;</button>
+            </div>
+        </form>
+
+        <div class="loading" id="loadingBlock">
+            <div class="spinner"></div>
+            <p><strong>AI-система ReSkills анализирует Skill Gaps...</strong></p>
+            <p id="loadingText"></p>
+            <p style="font-size: 0.9em; color: #666;">Пожалуйста, подождите, мы генерируем ваш персональный план.</p>
+        </div>
+
+        <div class="result" id="resultBlock">
+            <h2>Ваш AI-Отчет (Краткая выжимка)</h2>
+            <div class="ai-message">
+                <p><strong>🔥 Ваш индивидуальный план Reskilling:</strong></p>
+                <p>Необходимо освоить: Продвинутая SQL (T-SQL), Облачные сервисы (AWS/Azure), Программное управление проектами (Agile/Scrum).</p>
+                <p>Вы можете изучить вот эти курсы:</p>
+                <ul>
+                    <li><a href="#">SQL для продвинутых (HSE Open Education)</a></li>
+                    <li><a href="#">Сертификация Azure Fundamentals (Microsoft Learn)</a></li>
+                    <li><a href="#">Курс Project Management с Scrum (Skillbox)</a></li>
+                </ul>
+                
+                <p><strong>💡 Ваш потенциал на рынке:</strong></p>
+                <p>Вот некоторые вакансии, которым вы будете подходить через 6 месяцев:</p>
+                <ul>
+                    <li><a href="#">Вакансия "Junior Cloud Analyst" (Yandex Cloud)</a></li>
+                    <li><a href="#">Вакансия "Agile PM Assistant" (Тинькофф)</a></li>
+                    <li><a href="#">Вакансия "Data Science Trainee" (Сбер)</a></li>
+                </ul>
+                <p style="font-size: 0.9em; margin-top: 20px;">Полный детализированный отчет отправлен на ваш Email. Успехов!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('reskillForm').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            document.getElementById('reskillForm').style.display = 'none';
+            document.getElementById('resultBlock').style.display = 'none';
+            
+            const loadingBlock = document.getElementById('loadingBlock');
+            loadingBlock.style.display = 'block';
+            
+            const loadingText = document.getElementById('loadingText');
+            
+            const stages = [
+                'Собираем данные по рынку труда...',
+                'Анализируем ваши текущие компетенции...',
+                'Идентифицируем критические Skill Gaps...',
+                'Генерируем индивидуальную траекторию обучения...',
+                'Формируем краткий отчет...'
+            ];
+            
+            let timeElapsed = 0;
+
+            stages.forEach((text, index) => {
+                timeElapsed += 1000; 
+
+                setTimeout(() => {
+                    loadingText.innerHTML = text;
+                    if (index === stages.length - 1) {
+                        
+                        setTimeout(() => {
+                            loadingBlock.style.display = 'none';
+                            document.getElementById('resultBlock').style.display = 'block';
+                            loadingText.innerHTML = ''; // Чистим текст после завершения
+                            
+                            // ПЕРЕХОД К РЕАЛЬНОЙ ССЫЛКЕ
+                            // В реальном MVP здесь будет отправка данных на Zapier/Webhook
+                            // и перенаправление пользователя на страницу "Спасибо за заявку"
+                        }, 1000); 
+                    }
+                }, timeElapsed);
+            });
+        });
+    </script>
+
+</body>
+</html>
