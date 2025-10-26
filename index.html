@@ -231,19 +231,29 @@
         }
         
         function finalizeStart() {
-            // 2. Скрываем кнопку и показываем AR сцену
+            // 2. Скрываем кнопку
             startButtonOverlay.style.display = 'none';
-            arScene.style.opacity = '1';
             
-            // 3. Инициализируем AR-логику
-            console.log("WebAR Demo загружено и готово.");
-            
-            // Случайное размещение объекта при первом запуске
-            relocateObject(); 
+            // 3. Добавляем небольшую задержку и хак для инициализации камеры на Android
+            setTimeout(() => {
+                // Показываем AR сцену
+                arScene.style.opacity = '1';
 
-            messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
-            messageBox.classList.remove('bg-yellow-300');
-            messageBox.classList.add('bg-green-400');
+                // Хак: Явно вызываем событие resize. Это заставляет AR.js
+                // пересчитать размеры и часто помогает корректно запустить видеопоток
+                // в проблемных WebView-окружениях (как в TMA на Android).
+                window.dispatchEvent(new Event('resize'));
+                
+                // 4. Завершение инициализации
+                console.log("WebAR Demo загружено и готово.");
+                
+                // Случайное размещение объекта при первом запуске
+                relocateObject(); 
+
+                messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
+                messageBox.classList.remove('bg-yellow-300');
+                messageBox.classList.add('bg-green-400');
+            }, 50); // Небольшая задержка 50ms для стабильности
 
             // В реальном TMA, когда этот HTML загружен, вы можете
             // уведомить Flutter/TMA о готовности:
