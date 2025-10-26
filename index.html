@@ -64,6 +64,18 @@
         .interactive-ui {
             pointer-events: auto;
         }
+
+        /* Стиль для индикатора направления */
+        #direction-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px; /* Размер стрелки */
+            height: 60px;
+            pointer-events: none;
+            z-index: 150;
+            /* transform: translate(-50%, -50%) - Стилизация в JS для динамического поворота */
+        }
     </style>
 </head>
 <body class="bg-gray-900 font-sans h-screen w-screen overflow-hidden">
@@ -81,6 +93,14 @@
             </div>
         </div>
 
+        <!-- Индикатор направления (Стрелка) -->
+        <div id="direction-indicator" style="display:none;">
+            <svg viewBox="0 0 100 100" class="w-full h-full text-yellow-400 drop-shadow-lg" style="opacity: 0.9;">
+                <!-- Простая стрелка, указывающая вверх (0 градусов) -->
+                <path fill="currentColor" d="M 50 10 L 80 40 L 60 40 L 60 90 L 40 90 L 40 40 L 20 40 Z"/>
+            </svg>
+        </div>
+
         <div id="feedback-message" class="absolute inset-x-0 bottom-20 text-center interactive-ui">
             <!-- Сообщения об успехе или ошибке -->
         </div>
@@ -95,8 +115,8 @@
         </button>
     </div>
 
-    <!-- Скрытый элемент для нативного видеопотока (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ДЛЯ ANDROID) -->
-    <video id="arVideoElement" style="display:none;" playsinline preload></video>
+    <!-- Скрытый элемент для нативного видеопотока. Добавлен webkit-playsinline для совместимости с WebView -->
+    <video id="arVideoElement" style="display:none;" playsinline webkit-playsinline preload></video>
 
     <!-- WebAR Сцена (A-Frame) -->
     <a-scene
@@ -105,7 +125,8 @@
         arjs='sourceType: video; sourceUrl: #arVideoElement; trackingMethod: best;' 
         vr-mode-ui='enabled: false;'
         renderer="logarithmicDepthBuffer: true;"
-        loading-screen="enabled: false;">
+        loading-screen="enabled: false;"
+        direction-indicator> <!-- Прикрепляем новый компонент к сцене -->
 
         <!-- AR-объект, который будет давать очки -->
         <a-box
@@ -124,6 +145,73 @@
 
 
     <script>
+        // ====================================================================
+        // A-FRAME КОМПОНЕНТ ДЛЯ ИНДИКАТОРА НАПРАВЛЕНИЯ
+        // ====================================================================
+        AFRAME.registerComponent('direction-indicator', {
+            init: function () {
+                // Получаем 3D-объекты сцены
+                this.camera = document.querySelector('a-entity[camera]').object3D;
+                this.target = document.getElementById('ar-object').object3D;
+                this.indicator = document.getElementById('direction-indicator');
+                
+                // Векторы для расчетов, инициализированные один раз для переиспользования
+                this.targetWorldPos = new THREE.Vector3();
+                this.cameraWorldPos = new THREE.Vector3();
+                this.vectorToTarget = new THREE.Vector3();
+            },
+
+            tick: function () {
+                const targetEl = document.getElementById('ar-object');
+
+                // Проверка, виден ли объект (не скрыт ли он после сбора очков)
+                if (!targetEl.getAttribute('visible')) {
+                    this.indicator.style.display = 'none';
+                    return;
+                }
+
+                // 1. Получаем мировые позиции цели и камеры
+                this.target.getWorldPosition(this.targetWorldPos);
+                this.camera.getWorldPosition(this.cameraWorldPos);
+                
+                // 2. Рассчитываем вектор от камеры к цели
+                this.vectorToTarget.subVectors(this.targetWorldPos, this.cameraWorldPos);
+                
+                // 3. Определяем угол в горизонтальной плоскости (XZ)
+                // targetAngleRad - это угол, на который объект отклонен от мирового Z-forward
+                const targetAngleRad = Math.atan2(this.vectorToTarget.x, this.vectorToTarget.z); 
+                
+                // 4. Получаем текущее вращение камеры по оси Y (курс)
+                // Rotation.y уже включает данные гироскопа/ориентации устройства
+                const cameraYRotationRad = this.camera.rotation.y;
+                
+                // 5. Разница углов: насколько нужно повернуть экран, чтобы цель была впереди
+                let angleDiffRad = targetAngleRad - cameraYRotationRad;
+
+                // Нормализация угла к диапазону [-PI, PI]
+                while (angleDiffRad > Math.PI) angleDiffRad -= 2 * Math.PI;
+                while (angleDiffRad < -Math.PI) angleDiffRad += 2 * Math.PI;
+
+                const angleDiffDeg = angleDiffRad * (180 / Math.PI);
+
+                // 6. Проверка порога (скрыть, если цель в центре обзора)
+                const threshold = 15; // 15 градусов
+                if (Math.abs(angleDiffDeg) < threshold) {
+                     this.indicator.style.display = 'none';
+                } else {
+                     this.indicator.style.display = 'block';
+                     // Вращаем индикатор. Стрелка указывает вверх (0 deg), поэтому поворот должен быть
+                     // противоположен разнице углов (-angleDiffDeg)
+                     this.indicator.style.transform = `translate(-50%, -50%) rotate(${-angleDiffDeg}deg)`;
+                }
+            }
+        });
+
+
+        // ====================================================================
+        // ОСНОВНАЯ ЛОГИКА ИНТЕРФЕЙСА И ЗАПУСКА
+        // ====================================================================
+        
         const scoreDisplay = document.getElementById('score-display');
         const messageBox = document.getElementById('message-box');
         const feedbackMessage = document.getElementById('feedback-message');
@@ -131,14 +219,11 @@
         const startButtonOverlay = document.getElementById('ar-start-button-overlay');
         const startButton = document.getElementById('startButton');
         const arScene = document.getElementById('ar-scene');
-        const videoElement = document.getElementById('arVideoElement'); // Скрытый видеоэлемент
+        const videoElement = document.getElementById('arVideoElement'); 
 
         let score = 0;
         let objectVisible = true; 
-
-        // ====================================================================
-        // 1. ЛОГИКА ПЕРЕМЕЩЕНИЯ И НАЧИСЛЕНИЯ ОЧКОВ
-        // ====================================================================
+        let currentStream = null; // Глобальная переменная для хранения потока камеры
 
         // Функция для обновления интерфейса
         function updateScore(points) {
@@ -199,17 +284,30 @@
         });
 
         // ====================================================================
-        // 2. ЛОГИКА ЗАПУСКА КАМЕРЫ И РАЗРЕШЕНИЙ (НАДЕЖНЫЙ МЕТОД)
+        // 2. ЛОГИКА ЗАПУСКА КАМЕРЫ И РАЗРЕШЕНИЙ (НАДЕЖНЫЙ МЕТОД + ПОВТОРЫ)
         // ====================================================================
         
+        // Функция для остановки текущего потока камеры (КРИТИЧНО для NotReadableError)
+        function stopCameraStream() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+                console.log("Предыдущий поток камеры остановлен.");
+            }
+        }
+
         function handleCameraError(error) {
             startButtonOverlay.style.display = 'flex';
             arScene.style.opacity = '0';
+            stopCameraStream(); // Убедимся, что поток остановлен при ошибке
             
             let userMessage = 'Неизвестная ошибка камеры.';
             
             if (error.name === 'NotAllowedError') {
                 userMessage = 'Доступ к камере заблокирован. Пожалуйста, проверьте настройки разрешений вашего браузера/Telegram.';
+            } else if (error.name === 'NotReadableError') {
+                 // ИНФОРМАТИВНОЕ СООБЩЕНИЕ ДЛЯ ПОЛЬЗОВАТЕЛЯ
+                 userMessage = 'Камера занята. Пожалуйста, убедитесь, что ни одно другое приложение (например, камера телефона) не использует ее, и попробуйте снова.';
             } else if (error.name === 'NotFoundError') {
                 userMessage = 'Камера не найдена.';
             } else if (error.message && error.message.includes('Only secure origins are allowed')) {
@@ -224,31 +322,67 @@
             console.error("Manual Camera Error:", error);
         }
 
-        function finalizeStart() {
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function requestCameraStream(retries = 3) {
+            stopCameraStream(); // Останавливаем предыдущий поток перед началом нового запроса
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    currentStream = stream; // Сохраняем новый поток
+                    return stream;
+                } catch (error) {
+                    // Если NotReadableError и это не последняя попытка, ждем и пробуем снова
+                    if (error.name === 'NotReadableError' && i < retries - 1) {
+                        console.warn(`Попытка получить камеру не удалась (${i + 1}/${retries}). NotReadableError. Повтор через 500 мс.`);
+                        await delay(500);
+                        continue;
+                    }
+                    // В случае другой ошибки или последней попытки NotReadableError
+                    throw error;
+                }
+            }
+        }
+
+
+        async function finalizeStart() {
             // 1. Скрываем кнопку
             startButtonOverlay.style.display = 'none';
+            messageBox.textContent = 'Запуск камеры...';
             
-            // 2. Нативный запрос потока камеры (самый надежный способ)
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(stream => {
-                    videoElement.srcObject = stream;
-                    videoElement.onloadedmetadata = () => {
-                        // 3. Запускаем видео только после получения метаданных
-                        videoElement.play().then(() => {
+            try {
+                // 2. Нативный запрос потока камеры с логикой повтора
+                const stream = await requestCameraStream();
+                
+                videoElement.srcObject = stream;
+                videoElement.onloadedmetadata = () => {
+                    // 3. Запускаем видео только после получения метаданных
+                    videoElement.play().then(() => {
+                        
+                        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Добавляем небольшую задержку, чтобы дать
+                        // видеопотоку время для рендеринга первого кадра, прежде чем A-Frame
+                        // попытается использовать его в качестве текстуры.
+                        setTimeout(() => {
                             // 4. После успешного запуска видеопотока показываем AR сцену
                             arScene.style.opacity = '1';
                             window.dispatchEvent(new Event('resize')); // Хак для WebView
 
-                            console.log("Видеопоток камеры успешно запущен.");
+                            console.log("Видеопоток камеры успешно запущен и отображается.");
                             relocateObject(); 
 
                             messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
-                            messageBox.classList.remove('bg-yellow-300', 'bg-blue-500', 'bg-red-600');
+                            messageBox.classList.remove('bg-yellow-300', 'bg-blue-500', 'bg-red-600', 'bg-purple-400');
                             messageBox.classList.add('bg-green-400');
-                        }).catch(handleCameraError); // Обработка ошибки play()
-                    };
-                })
-                .catch(handleCameraError); // Обработка ошибки getUserMedia()
+                        }, 100); // Задержка 100 мс
+
+                    }).catch(handleCameraError); // Обработка ошибки play()
+                };
+            } catch (error) {
+                handleCameraError(error); // Обработка ошибки getUserMedia()
+            }
         }
 
         function startARSession() {
