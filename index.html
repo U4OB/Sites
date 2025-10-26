@@ -91,15 +91,18 @@
         <h1 class="text-white text-2xl font-bold mb-6">AR-поиск объектов</h1>
         <p class="text-gray-300 text-center mb-10 max-w-sm">Для начала потребуется разрешение на использование камеры и датчиков движения.</p>
         <button id="startButton" class="interactive-ui bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-2xl transition duration-200 transform hover:scale-105">
-            Начать AR-сессию 
+            Начать AR-сессию
         </button>
     </div>
+
+    <!-- Скрытый элемент для нативного видеопотока (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ДЛЯ ANDROID) -->
+    <video id="arVideoElement" style="display:none;" playsinline preload></video>
 
     <!-- WebAR Сцена (A-Frame) -->
     <a-scene
         id="ar-scene"
         embedded
-        arjs='sourceType: webcam; trackingMethod: best; video: true;' <!-- ИСПРАВЛЕНИЕ 1: Явно указываем video: true -->
+        arjs='sourceType: video; sourceUrl: #arVideoElement; trackingMethod: best;' 
         vr-mode-ui='enabled: false;'
         renderer="logarithmicDepthBuffer: true;"
         loading-screen="enabled: false;">
@@ -128,6 +131,7 @@
         const startButtonOverlay = document.getElementById('ar-start-button-overlay');
         const startButton = document.getElementById('startButton');
         const arScene = document.getElementById('ar-scene');
+        const videoElement = document.getElementById('arVideoElement'); // Скрытый видеоэлемент
 
         let score = 0;
         let objectVisible = true; 
@@ -163,7 +167,7 @@
             console.log(`Объект перемещен на: ${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}`);
 
             messageBox.textContent = 'Объект переместился! Посмотрите вокруг, чтобы найти его!';
-            messageBox.classList.remove('bg-green-400');
+            messageBox.classList.remove('bg-green-400', 'bg-red-600');
             messageBox.classList.add('bg-purple-400');
         }
 
@@ -195,24 +199,56 @@
         });
 
         // ====================================================================
-        // 2. ЛОГИКА ЗАПУСКА И РАЗРЕШЕНИЙ (FIX ДЛЯ МОБИЛЬНЫХ)
+        // 2. ЛОГИКА ЗАПУСКА КАМЕРЫ И РАЗРЕШЕНИЙ (НАДЕЖНЫЙ МЕТОД)
         // ====================================================================
         
-        function checkAndFixAndroidCamera() {
-             // ИСПРАВЛЕНИЕ 2: Явное управление видеоэлементом для Android WebView
-            const video = document.querySelector('video');
-            if (video) {
-                // 1. Убеждаемся, что playsinline установлен (критично для Android в WebView)
-                video.setAttribute('playsinline', true);
-                
-                // 2. Пытаемся принудительно запустить видео
-                video.play().catch(error => {
-                    console.warn("Manual video play failed (может быть нормально, если поток уже запущен):", error);
-                });
-                console.log("Применены Android/WebView исправления: playsinline и video.play().");
+        function handleCameraError(error) {
+            startButtonOverlay.style.display = 'flex';
+            arScene.style.opacity = '0';
+            
+            let userMessage = 'Неизвестная ошибка камеры.';
+            
+            if (error.name === 'NotAllowedError') {
+                userMessage = 'Доступ к камере заблокирован. Пожалуйста, проверьте настройки разрешений вашего браузера/Telegram.';
+            } else if (error.name === 'NotFoundError') {
+                userMessage = 'Камера не найдена.';
+            } else if (error.message && error.message.includes('Only secure origins are allowed')) {
+                 userMessage = 'Ошибка безопасности: для камеры требуется HTTPS-соединение.';
             } else {
-                console.warn("AR video element еще не найден.");
+                 userMessage = `Ошибка: ${error.name}. Пожалуйста, попробуйте перезагрузить.`;
             }
+
+            messageBox.textContent = userMessage;
+            messageBox.classList.remove('bg-green-400', 'bg-blue-500', 'bg-purple-400');
+            messageBox.classList.add('bg-red-600', 'text-white');
+            console.error("Manual Camera Error:", error);
+        }
+
+        function finalizeStart() {
+            // 1. Скрываем кнопку
+            startButtonOverlay.style.display = 'none';
+            
+            // 2. Нативный запрос потока камеры (самый надежный способ)
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    videoElement.srcObject = stream;
+                    videoElement.onloadedmetadata = () => {
+                        // 3. Запускаем видео только после получения метаданных
+                        videoElement.play().then(() => {
+                            // 4. После успешного запуска видеопотока показываем AR сцену
+                            arScene.style.opacity = '1';
+                            window.dispatchEvent(new Event('resize')); // Хак для WebView
+
+                            console.log("Видеопоток камеры успешно запущен.");
+                            relocateObject(); 
+
+                            messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
+                            messageBox.classList.remove('bg-yellow-300', 'bg-blue-500', 'bg-red-600');
+                            messageBox.classList.add('bg-green-400');
+                        }).catch(handleCameraError); // Обработка ошибки play()
+                    };
+                })
+                .catch(handleCameraError); // Обработка ошибки getUserMedia()
         }
 
         function startARSession() {
@@ -233,30 +269,6 @@
             }
         }
         
-        function finalizeStart() {
-            // 2. Скрываем кнопку
-            startButtonOverlay.style.display = 'none';
-            
-            // 3. Задержка и хаки для инициализации камеры
-            setTimeout(() => {
-                // Показываем AR сцену
-                arScene.style.opacity = '1';
-
-                // Хак: Явно вызываем событие resize
-                window.dispatchEvent(new Event('resize'));
-                
-                // Хак: Явно проверяем и запускаем видеопоток
-                checkAndFixAndroidCamera(); 
-                
-                // 4. Завершение инициализации
-                console.log("WebAR Demo загружено и готово.");
-                relocateObject(); 
-
-                messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
-                messageBox.classList.remove('bg-yellow-300', 'bg-blue-500');
-                messageBox.classList.add('bg-green-400');
-            }, 50); // Небольшая задержка 50ms для стабильности
-        }
 
         // ====================================================================
         // 3. ОБРАБОТКА ЗАГРУЗКИ (ИНИЦИАЛИЗАЦИЯ)
@@ -264,7 +276,7 @@
 
         window.onload = function() {
             messageBox.textContent = 'Нажмите "Начать AR-сессию" для продолжения.';
-            messageBox.classList.remove('bg-yellow-300', 'bg-green-400', 'bg-purple-400');
+            messageBox.classList.remove('bg-yellow-300', 'bg-green-400', 'bg-purple-400', 'bg-red-600');
             messageBox.classList.add('bg-blue-500');
 
             // Добавляем обработчик на кнопку
