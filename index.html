@@ -35,11 +35,29 @@
             z-index: 100;
         }
 
+        /* Стиль для начального экрана */
+        #ar-start-button-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 200; /* Выше AR-оверлея */
+            pointer-events: auto;
+        }
+        
         /* Убедимся, что A-Frame занимает весь экран */
         a-scene {
             height: 100vh;
             width: 100vw;
             display: block;
+            opacity: 0; /* Скрываем сцену по умолчанию */
+            transition: opacity 0.5s;
         }
 
         /* Переопределяем pointer-events для интерактивных элементов внутри оверлея */
@@ -66,13 +84,20 @@
         <div id="feedback-message" class="absolute inset-x-0 bottom-20 text-center interactive-ui">
             <!-- Сообщения об успехе или ошибке -->
         </div>
+    </div>
 
+    <!-- Начальный экран с кнопкой запуска для обхода ограничений iOS/Safari -->
+    <div id="ar-start-button-overlay">
+        <h1 class="text-white text-2xl font-bold mb-6">AR-поиск объектов</h1>
+        <p class="text-gray-300 text-center mb-10 max-w-sm">Для начала потребуется разрешение на использование камеры и датчиков движения.</p>
+        <button id="startButton" class="interactive-ui bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-2xl transition duration-200 transform hover:scale-105">
+            Начать AR-сессию
+        </button>
     </div>
 
     <!-- WebAR Сцена (A-Frame) -->
-    <!-- arjs='sourceType: webcam;' - Используем веб-камеру -->
-    <!-- vr-mode-ui='enabled: false;' - Отключаем кнопку VR-режима -->
     <a-scene
+        id="ar-scene"
         embedded
         arjs='sourceType: webcam; trackingMethod: best;'
         vr-mode-ui='enabled: false;'
@@ -80,7 +105,6 @@
         loading-screen="enabled: false;">
 
         <!-- AR-объект, который будет давать очки -->
-        <!-- Начальная позиция будет задана через JavaScript -->
         <a-box
             id="ar-object"
             position="0 0 -3"  
@@ -101,6 +125,9 @@
         const messageBox = document.getElementById('message-box');
         const feedbackMessage = document.getElementById('feedback-message');
         const arObject = document.getElementById('ar-object');
+        const startButtonOverlay = document.getElementById('ar-start-button-overlay');
+        const startButton = document.getElementById('startButton');
+        const arScene = document.getElementById('ar-scene');
 
         let score = 0;
         let objectVisible = true; 
@@ -172,12 +199,43 @@
             }
         });
 
-
         // ====================================================================
-        // 2. ОБРАБОТКА ЗАГРУЗКИ (ИНИЦИАЛИЗАЦИЯ)
+        // 2. ЛОГИКА ЗАПУСКА И РАЗРЕШЕНИЙ (FIX ДЛЯ МОБИЛЬНЫХ)
         // ====================================================================
-
-        window.onload = function() {
+        
+        function startARSession() {
+            // 1. Сначала пытаемся запросить разрешение на датчики движения (для iOS 13+)
+            // Это должно происходить после пользовательского жеста (клика)
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isIOS && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            console.log("Device Orientation permission granted.");
+                        } else {
+                            console.warn("Device Orientation permission denied.");
+                        }
+                        // В любом случае продолжаем, чтобы запустить камеру
+                        finalizeStart();
+                    })
+                    .catch(error => {
+                        console.error("Error requesting Device Orientation permission:", error);
+                        // Продолжаем, на случай если ошибка не критична
+                        finalizeStart();
+                    });
+            } else {
+                // Для Android или старых iOS/других браузеров, где это не требуется
+                finalizeStart();
+            }
+        }
+        
+        function finalizeStart() {
+            // 2. Скрываем кнопку и показываем AR сцену
+            startButtonOverlay.style.display = 'none';
+            arScene.style.opacity = '1';
+            
+            // 3. Инициализируем AR-логику
             console.log("WebAR Demo загружено и готово.");
             
             // Случайное размещение объекта при первом запуске
@@ -186,12 +244,25 @@
             messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
             messageBox.classList.remove('bg-yellow-300');
             messageBox.classList.add('bg-green-400');
-            
+
             // В реальном TMA, когда этот HTML загружен, вы можете
-            // уведомить Flutter/TMA о готовности, например, через Telegram Web App API:
+            // уведомить Flutter/TMA о готовности:
             // if (window.Telegram && window.Telegram.WebApp) {
             //     Telegram.WebApp.ready();
             // }
+        }
+
+        // ====================================================================
+        // 3. ОБРАБОТКА ЗАГРУЗКИ (ИНИЦИАЛИЗАЦИЯ)
+        // ====================================================================
+
+        window.onload = function() {
+            messageBox.textContent = 'Нажмите "Начать AR-сессию" для продолжения.';
+            messageBox.classList.remove('bg-yellow-300');
+            messageBox.classList.add('bg-blue-500');
+
+            // Добавляем обработчик на кнопку
+            startButton.addEventListener('click', startARSession);
         };
     </script>
 </body>
