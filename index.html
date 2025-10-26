@@ -339,7 +339,6 @@
                     if (error.name === 'NotReadableError' && i < retries - 1) {
                         console.warn(`Попытка получить камеру не удалась (${i + 1}/${retries}). NotReadableError. Повтор через 500 мс.`);
                         await delay(500);
-                        continue;
                     }
                     // В случае другой ошибки или последней попытки NotReadableError
                     throw error;
@@ -419,3 +418,4 @@
     </script>
 </body>
 </html>
+
