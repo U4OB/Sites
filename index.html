@@ -3,73 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Сканер Объектов в Пространстве</title>
+    <title>WebAR Сканер</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-
-            }
-        }
-    </script>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
     <style>
-        #ar-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        #ar-start-button-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 200;
-            pointer-events: auto;
-        }
-        
-        a-scene {
-            height: 100vh;
-            width: 100vw;
-            display: block;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-
-        .interactive-ui {
-            pointer-events: auto;
-        }
-
-        #direction-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 60px;
-            height: 60px;
-            pointer-events: none;
-            z-index: 150;
-        }
+        #ar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        #ar-start-button-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); z-index: 200; pointer-events: auto; }
+        a-scene { height: 100vh; width: 100vw; display: block; opacity: 0; transition: opacity 0.5s; }
+        .interactive-ui { pointer-events: auto; }
+        #direction-indicator { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; pointer-events: none; z-index: 150; }
     </style>
 </head>
-<body class="bg-gray-900 font-sans h-screen w-screen overflow-hidden">
+<body class="bg-gray-900 h-screen w-screen overflow-hidden">
 
     <div id="ar-overlay">
         <div class="p-4 flex justify-between items-start interactive-ui">
@@ -77,23 +24,22 @@
                 Очки: 0
             </div>
             <div id="message-box" class="bg-yellow-300 text-gray-800 font-medium px-4 py-2 rounded-lg shadow-lg max-w-xs text-sm">
-                Загрузка AR-сцены...
+                Нажмите начать...
             </div>
         </div>
 
         <div id="direction-indicator" style="display:none;">
-            <svg viewBox="0 0 100 100" class="w-full h-full text-yellow-400 drop-shadow-lg" style="opacity: 0.9;">
+            <svg viewBox="0 0 100 100" class="w-full h-full text-yellow-400 drop-shadow-lg">
                 <path fill="currentColor" d="M 50 10 L 80 40 L 60 40 L 60 90 L 40 90 L 40 40 L 20 40 Z"/>
             </svg>
         </div>
 
-        <div id="feedback-message" class="absolute inset-x-0 bottom-20 text-center interactive-ui">
-        </div>
+        <div id="feedback-message" class="absolute inset-x-0 bottom-20 text-center interactive-ui"></div>
     </div>
 
     <div id="ar-start-button-overlay">
         <h1 class="text-white text-2xl font-bold mb-6">AR-поиск объектов</h1>
-        <p class="text-gray-300 text-center mb-10 max-w-sm">Для начала потребуется разрешение на использование камеры и датчиков движения.</p>
+        <p class="text-gray-300 text-center mb-10 max-w-sm">Разрешите доступ к камере и гироскопу.</p>
         <button id="startButton" class="interactive-ui bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-2xl transition duration-200 transform hover:scale-105">
             Начать AR-сессию
         </button>
@@ -107,16 +53,7 @@
         loading-screen="enabled: false;"
         direction-indicator>
 
-        <a-box
-            id="ar-object"
-            position="0 0 -3"  
-            rotation="0 45 0"
-            scale="0.5 0.5 0.5"
-            color="#FF4500"
-            material="opacity: 0.9; metalness: 0.5;"
-            shadow>
-        </a-box>
-
+        <a-box id="ar-object" position="0 0 -3" rotation="0 45 0" scale="0.5 0.5 0.5" color="#FF4500" material="opacity: 0.9; metalness: 0.5;" shadow></a-box>
         <a-entity camera></a-entity>
     </a-scene>
 
@@ -130,27 +67,22 @@
                 this.cameraWorldPos = new THREE.Vector3();
                 this.vectorToTarget = new THREE.Vector3();
             },
-
             tick: function () {
                 const targetEl = document.getElementById('ar-object');
                 if (!targetEl.getAttribute('visible')) {
                     this.indicator.style.display = 'none';
                     return;
                 }
-
                 this.target.getWorldPosition(this.targetWorldPos);
                 this.camera.getWorldPosition(this.cameraWorldPos);
                 this.vectorToTarget.subVectors(this.targetWorldPos, this.cameraWorldPos);
                 const targetAngleRad = Math.atan2(this.vectorToTarget.x, this.vectorToTarget.z);
                 const cameraYRotationRad = this.camera.rotation.y;
                 let angleDiffRad = targetAngleRad - cameraYRotationRad;
-
                 while (angleDiffRad > Math.PI) angleDiffRad -= 2 * Math.PI;
                 while (angleDiffRad < -Math.PI) angleDiffRad += 2 * Math.PI;
-
                 const angleDiffDeg = angleDiffRad * (180 / Math.PI);
                 const threshold = 15;
-
                 if (Math.abs(angleDiffDeg) < threshold) {
                     this.indicator.style.display = 'none';
                 } else {
@@ -165,11 +97,9 @@
         const feedbackMessage = document.getElementById('feedback-message');
         const arObject = document.getElementById('ar-object');
         const startButtonOverlay = document.getElementById('ar-start-button-overlay');
-        const startButton = document.getElementById('startButton');
         const arScene = document.getElementById('ar-scene');
 
         let score = 0;
-        let objectVisible = true;
 
         function updateScore(points) {
             score += points;
@@ -187,13 +117,12 @@
             const y = (Math.random() * 6) - 3;
             const z = (Math.random() * -3) - 4;
             arObject.setAttribute('position', `${x.toFixed(2)} ${y.toFixed(2)} ${z.toFixed(2)}`);
-            messageBox.textContent = 'Объект переместился! Посмотрите вокруг.';
-            messageBox.classList.remove('bg-green-400', 'bg-red-600');
-            messageBox.classList.add('bg-purple-400');
+            messageBox.textContent = 'Объект переместился! Ищите.';
+            messageBox.classList.remove('bg-green-400', 'bg-red-600'); messageBox.classList.add('bg-purple-400');
         }
 
-        arObject.addEventListener('click', function () {
-            if (!objectVisible || arObject.getAttribute('data-scored') === 'true') return;
+        arObject.addEventListener('click', () => {
+            if (arObject.getAttribute('data-scored') === 'true') return;
             arObject.setAttribute('data-scored', 'true');
             updateScore(10);
             arObject.setAttribute('visible', false);
@@ -201,34 +130,17 @@
                 relocateObject();
                 arObject.setAttribute('data-scored', 'false');
                 arObject.setAttribute('visible', true);
-                showFeedback('Найдите новый объект!', 'bg-blue-500');
+                showFeedback('Новый объект!', 'bg-blue-500');
             }, 3000);
         });
 
-        function handleError(error) {
-            startButtonOverlay.style.display = 'flex';
-            arScene.style.opacity = '0';
-            let msg = 'Неизвестная ошибка.';
-            if (error.name === 'NotAllowedError') msg = 'Доступ к камере заблокирован.';
-            else if (error.name === 'NotReadableError') msg = 'Камера занята другим приложением.';
-            else if (error.name === 'NotFoundError') msg = 'Камера не найдена.';
-            messageBox.textContent = msg;
-            messageBox.classList.add('bg-red-600', 'text-white');
-            console.error(error);
-        }
-
-        async function startAR() {
+        document.getElementById('startButton').addEventListener('click', async () => {
             startButtonOverlay.style.display = 'none';
-            messageBox.textContent = 'Запуск камеры...';
+            messageBox.textContent = 'Запуск...';
 
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isIOS && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
-                    await DeviceOrientationEvent.requestPermission();
-                } catch (e) {}
-            }
-
-            try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'environment' }
                 });
@@ -247,13 +159,31 @@
             } catch (err) {
                 handleError(err);
             }
-        }
+            }
 
-        window.onload = () => {
-            messageBox.textContent = 'Нажмите "Начать AR-сессию".';
-            messageBox.classList.add('bg-blue-500');
-            startButton.addEventListener('click', startAR);
-        };
+            // Добавляем AR.js атрибуты динамически
+            arScene.setAttribute('arjs', `
+                trackingMethod: best;
+                sourceType: webcam;
+                debugUIEnabled: false;
+                detectionMode: mono;
+            `);
+
+            // Ждём инициализации AR.js
+            arScene.addEventListener('arjs-video-loaded', () => {
+                setTimeout(() => {
+                    arScene.style.opacity = '1';
+                    relocateObject();
+                    messageBox.textContent = 'Найдите объект!';
+                    messageBox.classList.add('bg-green-400');
+                }, 300);
+            }, { once: true });
+
+            arScene.addEventListener('arjs-nft-no-video', () => {
+                messageBox.textContent = 'Камера не работает';
+                messageBox.classList.add('bg-red-600');
+            }, { once: true });
+        });
     </script>
 </body>
 </html>
