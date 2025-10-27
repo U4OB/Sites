@@ -116,7 +116,10 @@
     </div>
 
     <!-- Скрытый элемент для нативного видеопотока (КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ДЛЯ ANDROID) -->
-    <video id="arVideoElement" style="display:none;" playsinline preload></video>
+    <video id="arVideoElement" 
+           style="position: fixed; top: 1px; left: 1px; width: 1px; height: 1px; z-index: -1; opacity: 0;" 
+           playsinline preload>
+    </video>
 
     <!-- WebAR Сцена (A-Frame) -->
     <a-scene
@@ -347,6 +350,7 @@
         }
 
 
+        // СТАЛО (Надежный запуск через события 'loadedmetadata' и 'playing')
         async function finalizeStart() {
             // 1. Скрываем кнопку
             startButtonOverlay.style.display = 'none';
@@ -357,33 +361,51 @@
                 const stream = await requestCameraStream();
                 
                 videoElement.srcObject = stream;
-                videoElement.onloadedmetadata = () => {
-                    // 3. Запускаем видео только после получения метаданных
-                    videoElement.play().then(() => {
-                        
-                        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Добавляем небольшую задержку, чтобы дать
-                        // видеопотоку время для рендеринга первого кадра, прежде чем A-Frame
-                        // попытается использовать его в качестве текстуры.
-                        setTimeout(() => {
-                            
-                            // 4. ТЕПЕРЬ, когда видео запущено, ИНИЦИАЛИЗИРУЕМ AR.js
-                            console.log("Применяем атрибут AR.js к сцене...");
-                            arScene.setAttribute('arjs', 'sourceType: video; sourceUrl: #arVideoElement; trackingMethod: best;');
 
-                            // 5. После успешного запуска видеопотока показываем AR сцену
-                            arScene.style.opacity = '1';
-                            window.dispatchEvent(new Event('resize')); // Хак для WebView
+                // 3. Создаем слушатель для события 'onplaying'
+                //    Это событие срабатывает, когда кадры *реально* начали рендериться.
+                const onPlaying = () => {
+                    console.log("Видеопоток 'onplaying' сработал.");
+                    
+                    // Удаляем слушатель, чтобы он не сработал снова
+                    videoElement.removeEventListener('playing', onPlaying);
 
-                            console.log("Видеопоток камеры успешно запущен.");
-                            relocateObject(); 
+                    // 4. ТЕПЕРЬ, когда видео *точно* проигрывается, ИНИЦИАЛИЗИРУЕМ AR.js
+                    console.log("Применяем атрибут AR.js к сцене...");
+                    arScene.setAttribute('arjs', 'sourceType: video; sourceUrl: #arVideoElement; trackingMethod: best;');
 
-                            messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
-                            messageBox.classList.remove('bg-yellow-300', 'bg-blue-500', 'bg-red-600', 'bg-purple-400');
-                            messageBox.classList.add('bg-green-400');
-                        }, 100); // Задержка 100 мс
+                    // Даем AR.js один-два кадра на "прогрев" и инициализацию
+                    // Это безопаснее, чем делать это в том же кадре
+                    setTimeout(() => {
+                        // 5. Показываем AR сцену
+                        arScene.style.opacity = '1';
+                        window.dispatchEvent(new Event('resize')); // Хак для WebView
 
-                    }).catch(handleCameraError); // Обработка ошибки play()
+                        console.log("Видеопоток камеры успешно запущен.");
+                        relocateObject(); 
+
+                        messageBox.textContent = 'Объект загружен! Посмотрите вокруг.';
+                        messageBox.classList.remove('bg-yellow-300', 'bg-blue-500', 'bg-red-600', 'bg-purple-400');
+                        messageBox.classList.add('bg-green-400');
+                    }, 50); // 50 мс достаточно
                 };
+
+                // 2b. Создаем слушатель для 'onloadedmetadata'
+                //     Он нужен, чтобы мы могли вызвать .play()
+                const onLoadedMetadata = () => {
+                    console.log("Видео 'onloadedmetadata' сработало. Вызываем play().");
+                    videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
+                    
+                    // Пытаемся запустить видео. Как только оно *начнет* играть,
+                    // сработает наш слушатель 'onPlaying'.
+                    videoElement.play().catch(handleCameraError); 
+                };
+                
+                // Назначаем оба слушателя
+                videoElement.addEventListener('loadedmetadata', onLoadedMetadata);
+                videoElement.addEventListener('playing', onPlaying);
+
+
             } catch (error) {
                 handleCameraError(error); // Обработка ошибки getUserMedia()
             }
