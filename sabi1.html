@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подготовка к экзамену ОЭП</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #1e40af;
+            --success: #16a34a;
+            --error: #dc2626;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: #1f2937;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Menu Styles */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .menu-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .menu-btn:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        /* Quiz Styles */
+        .quiz-container {
+            display: none;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+            font-weight: bold;
+            color: #6b7280;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid #e5e7eb;
+            padding: 15px;
+            text-align: left;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        .option-btn.correct {
+            background-color: #dcfce7;
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .option-btn.wrong {
+            background-color: #fee2e2;
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        .disabled {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-home {
+            background-color: #9ca3af;
+            color: white;
+        }
+
+        .btn-next {
+            background-color: var(--primary);
+            color: white;
+            display: none;
+        }
+
+        /* Result Screen */
+        .result-screen {
+            display: none;
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0 auto 20px;
+        }
+
+        .message {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Тренажер ОЭП (Казахстан)</h1>
+
+        <div id="main-menu" class="menu-grid">
+            <button class="menu-btn" onclick="startQuiz('civil')">1. Гражданское право</button>
+            <button class="menu-btn" onclick="startQuiz('admin')">2. Административное право</button>
+            <button class="menu-btn" onclick="startQuiz('criminal')">3. Уголовное право</button>
+            <button class="menu-btn" onclick="startQuiz('anti_corr')">4. Антикоррупционная политика</button>
+        </div>
+
+        <div id="quiz-area" class="quiz-container">
+            <div class="question-header">
+                <span id="block-name">Блок</span>
+                <span id="progress">Вопрос 1/20</span>
+            </div>
+            <div id="question-text" class="question-text">Текст вопроса...</div>
+            <div id="options" class="options-grid">
+                </div>
+            <div class="controls">
+                <button class="btn btn-home" onclick="goHome()">Меню</button>
+                <button id="next-btn" class="btn btn-next" onclick="nextQuestion()">Следующий вопрос</button>
+            </div>
+        </div>
+
+        <div id="result-screen" class="result-screen">
+            <div class="score-circle">
+                <span id="final-score">0%</span>
+            </div>
+            <h2 id="result-title">Тест завершен!</h2>
+            <p id="result-msg" class="message">Вы ответили правильно на X из Y вопросов.</p>
+            <button class="btn btn-home" style="background-color: var(--primary)" onclick="goHome()">Вернуться в меню</button>
+        </div>
+    </div>
+
+    <script>
+        // База данных вопросов, сформированная из ваших файлов
+        const quizData = {
+            civil: [ // Из файла ОЭП 2 блок
+                {
+                    q: "Что регулирует гражданское право Республики Казахстан?",
+                    options: ["Трудовые отношения", "Личные и имущественные отношения", "Уголовные преступления", "Административные правонарушения", "Бюджетное законодательство"],
+                    answer: 1
+                },
+                {
+                    q: "С какого возраста гражданин РК считается полностью дееспособным?",
+                    options: ["С 14 лет", "С 16 лет", "С 18 лет", "С 21 года", "С 20 лет"],
+                    answer: 2
+                },
+                {
+                    q: "Какой срок исковой давности применяется к большинству гражданско-правовых споров?",
+                    options: ["1 год", "2 года", "3 года", "5 лет", "10 лет"],
+                    answer: 2
+                },
+                {
+                    q: "Что является основной формой заключения сделок в гражданском праве?",
+                    options: ["Письменная форма", "Устная форма", "Нотариальная форма", "Конклюдентные действия", "Электронная форма"],
+                    answer: 0
+                },
+                {
+                    q: "Что из перечисленного относится к объектам гражданских прав?",
+                    options: ["Только имущество", "Только результаты интеллектуальной деятельности", "Личные неимущественные и имущественные блага", "Только денежные средства", "Только движимое имущество"],
+                    answer: 2
+                }
+            ],
+            criminal: [ // Из файла ОЭП 4 блок
+                {
+                    q: "Какой возраст наступления уголовной ответственности установлен в РК (общеустановленный)?",
+                    options: ["10 лет", "12 лет", "14 лет", "16 лет", "18 лет"],
+                    answer: 3
+                },
+                {
+                    q: "Что включает в себя состав преступления?",
+                    options: ["Личность преступника", "Совокупность признаков, характеризующих преступление (Объект, Субъект...)", "Обстоятельства, смягчающие наказание", "Преступные действия нескольких лиц", "Правовые нормы уголовного права"],
+                    answer: 1
+                },
+                {
+                    q: "Какой элемент состава преступления характеризует психическое отношение к содеянному?",
+                    options: ["Объект преступления", "Общественная опасность", "Субъективная сторона", "Объективная сторона", "Субъект преступления"],
+                    answer: 2
+                },
+                {
+                    q: "Какое наказание не относится к уголовным?",
+                    options: ["Лишение свободы", "Штраф", "Лишение права занимать должности", "Административный арест", "Конфискация имущества"],
+                    answer: 3
+                },
+                {
+                    q: "Что понимается под презумпцией невиновности?",
+                    options: ["Лицо считается невиновным до тех пор, пока его вина не будет доказана", "Вина лица всегда предполагается", "Преступление рассматривается как административное", "Лицо виновно после предъявления обвинения", "Обвиняемый обязан доказывать свою невиновность"],
+                    answer: 0
+                }
+            ],
+            admin: [ // Из файла ОЭП 3 блок
+                {
+                    q: "Какой основной источник административного права в РК?",
+                    options: ["Конституция РК", "Кодекс об административных правонарушениях", "Уголовный кодекс РК", "Закон о госуправлении", "Гражданский кодекс"],
+                    answer: 1
+                },
+                {
+                    q: "Какое наказание не применяется к юридическим лицам?",
+                    options: ["Штраф", "Лишение лицензии", "Предупреждение", "Административный арест", "Конфискация имущества"],
+                    answer: 3
+                },
+                {
+                    q: "Кто уполномочен рассматривать дела об административных правонарушениях?",
+                    options: ["Только суды", "Только полиция", "Прокуратура", "Полиция, суды и уполномоченные госорганы", "Никто"],
+                    answer: 3
+                },
+                {
+                    q: "Какой срок давности привлечения к административной ответственности (общий)?",
+                    options: ["1 месяц", "2 месяца", "6 месяцев", "1 год", "3 года"],
+                    answer: 1 
+                },
+                {
+                    q: "Что является основанием для административной ответственности?",
+                    options: ["Преступление", "Административный проступок", "Гражданский иск", "Дисциплинарное нарушение", "Увольнение"],
+                    answer: 1
+                }
+            ],
+            anti_corr: [ // Из файла ОЭП 1 блок
+                {
+                    q: "Какой орган в Казахстане отвечает за борьбу с коррупцией?",
+                    options: ["МВД", "Генпрокуратура", "Агентство по делам госслужбы и противодействию коррупции", "Комитет госконтроля", "Нацбанк"],
+                    answer: 2
+                },
+                {
+                    q: "Что является основным документом, регулирующим антикоррупционную деятельность в РК?",
+                    options: ["Закон о госслужбе", "Указ президента", "Конституция РК", "Закон РК «О противодействии коррупции»", "КоАП"],
+                    answer: 3
+                },
+                {
+                    q: "Что подразумевает «конфликт интересов»?",
+                    options: ["Желание заниматься бизнесом", "Личные интересы, влияющие на исполнение обязанностей", "Отсутствие опыта", "Нарушение дисциплины", "Политическая деятельность"],
+                    answer: 1
+                },
+                {
+                    q: "Какая роль отводится общественности в борьбе с коррупцией?",
+                    options: ["Создание комиссий", "Обеспечение контроля и нетерпимости к коррупции", "Расследование дел", "Привлечение экспертов", "Ликвидация схем"],
+                    answer: 1
+                },
+                {
+                    q: "Что такое коррупция в контексте политики РК?",
+                    options: ["Незаконный бизнес", "Использование служебного положения для получения выгоды", "Нарушение этики", "Хищение", "Неэтичное поведение"],
+                    answer: 1
+                }
+            ]
+        };
+
+        // Переменные состояния
+        let currentBlock = [];
+        let currentQIndex = 0;
+        let score = 0;
+        let blockTitle = "";
+
+        // DOM элементы
+        const mainMenu = document.getElementById('main-menu');
+        const quizArea = document.getElementById('quiz-area');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsDiv = document.getElementById('options');
+        const nextBtn = document.getElementById('next-btn');
+        const progressSpan = document.getElementById('progress');
+        const blockNameSpan = document.getElementById('block-name');
+
+        function startQuiz(blockKey) {
+            // Маппинг названий
+            const titles = {
+                'civil': 'Гражданское право',
+                'admin': 'Административное право',
+                'criminal': 'Уголовное право',
+                'anti_corr': 'Антикоррупционная политика'
+            };
+            
+            blockTitle = titles[blockKey];
+            currentBlock = quizData[blockKey];
+            currentQIndex = 0;
+            score = 0;
+
+            if(!currentBlock || currentBlock.length === 0) {
+                alert("Вопросы для этого раздела еще загружаются.");
+                return;
+            }
+
+            // UI переключение
+            mainMenu.style.display = 'none';
+            resultScreen.style.display = 'none';
+            quizArea.style.display = 'block';
+            blockNameSpan.textContent = blockTitle;
+
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const qData = currentBlock[currentQIndex];
+            
+            // Обновляем прогресс
+            progressSpan.textContent = `Вопрос ${currentQIndex + 1}/${currentBlock.length}`;
+            
+            // Показываем вопрос
+            questionText.textContent = qData.q;
+            
+            // Очищаем старые опции
+            optionsDiv.innerHTML = '';
+            nextBtn.style.display = 'none';
+
+            // Создаем кнопки ответов
+            qData.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(index, qData.answer, btn);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex, correctIndex, btnElement) {
+            const buttons = optionsDiv.querySelectorAll('.option-btn');
+            
+            // Блокируем все кнопки
+            buttons.forEach(b => b.classList.add('disabled'));
+
+            if (selectedIndex === correctIndex) {
+                btnElement.classList.add('correct');
+                score++;
+            } else {
+                btnElement.classList.add('wrong');
+                // Подсвечиваем правильный
+                buttons[correctIndex].classList.add('correct');
+            }
+
+            nextBtn.style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentQIndex++;
+            
+            if (currentQIndex < currentBlock.length) {
+                showQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function finishQuiz() {
+            quizArea.style.display = 'none';
+            resultScreen.style.display = 'block';
+            
+            const percentage = Math.round((score / currentBlock.length) * 100);
+            document.getElementById('final-score').textContent = `${percentage}%`;
+            document.getElementById('result-msg').textContent = `Вы ответили правильно на ${score} из ${currentBlock.length} вопросов.`;
+            
+            const title = document.getElementById('result-title');
+            if(percentage >= 90) title.textContent = "Отличный результат!";
+            else if(percentage >= 70) title.textContent = "Хорошая работа!";
+            else title.textContent = "Нужно еще потренироваться";
+        }
+
+        function goHome() {
+            resultScreen.style.display = 'none';
+            quizArea.style.display = 'none';
+            mainMenu.style.display = 'grid';
+        }
+    </script>
+</body>
+</html>
